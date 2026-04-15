@@ -1,55 +1,53 @@
 import streamlit as st
-import urllib.parse
+import pandas as pd
+import os
 
-# Настройки страницы
+# Файл, где будут храниться товары
+DB_FILE = "toys_db.csv"
+
+# Загрузка данных из файла
+def load_data():
+    if os.path.exists(DB_FILE):
+        return pd.read_csv(DB_FILE)
+    return pd.DataFrame(columns=["name", "price", "phone"])
+
+# Сохранение данных в файл
+def save_data(df):
+    df.to_csv(DB_FILE, index=False)
+
 st.set_page_config(page_title="3D Toy Store", layout="wide")
 
-# Инициализация базы данных в памяти
-if 'toys' not in st.session_state:
-    st.session_state.toys = []
+# Загружаем текущие товары
+toys_df = load_data()
 
-# --- БОКОВАЯ ПАНЕЛЬ (АДМИНКА) ---
-st.sidebar.header("Вход для владельца")
-admin_code = st.sidebar.text_input("Введите код доступа", type="password")
+# --- АДМИНКА ---
+st.sidebar.header("Вход")
+admin_code = st.sidebar.text_input("Код", type="password")
 
 if admin_code == "9876":
-    st.sidebar.success("Доступ разрешен")
-    st.sidebar.subheader("Добавить новую игрушку")
-    
-    with st.sidebar.form("add_toy_form"):
-        toy_name = st.text_input("Название игрушки")
-        toy_price = st.number_input("Цена", min_value=0)
-        toy_photo = st.file_uploader("Загрузите фото", type=["jpg", "png", "jpeg"])
-        whatsapp_phone = st.text_input("Ваш номер WhatsApp (например: 77071234567)")
+    st.sidebar.success("Доступ есть")
+    with st.sidebar.form("add_form"):
+        name = st.text_input("Название")
+        price = st.number_input("Цена", min_value=0)
+        phone = st.text_input("WhatsApp (7...)")
+        submit = st.form_submit_button("Опубликовать на все устройства")
         
-        submit = st.form_submit_button("Опубликовать")
-        
-        if submit and toy_photo and toy_name:
-            new_toy = {
-                "name": toy_name,
-                "price": toy_price,
-                "image": toy_photo,
-                "phone": whatsapp_phone
-            }
-            st.session_state.toys.append(new_toy)
-            st.sidebar.info(f"Игрушка '{toy_name}' добавлена!")
+        if submit and name:
+            new_row = pd.DataFrame([{"name": name, "price": price, "phone": phone}])
+            toys_df = pd.concat([toys_df, new_row], ignore_index=True)
+            save_data(toys_df)
+            st.sidebar.info("Сохранено! Обновите страницу.")
 
-# --- ОСНОВНОЙ ИНТЕРФЕЙС (ВИТРИНА) ---
-st.title("🤖 Магазин 3D игрушек")
-st.write("Выбирайте модель и пишите мне напрямую в WhatsApp!")
+# --- ВИТРИНА ---
+st.title("🤖 Постоянный магазин 3D игрушек")
 
-if not st.session_state.toys:
-    st.warning("На данный момент товаров нет. Владелец скоро их добавит!")
+if toys_df.empty:
+    st.info("Товаров пока нет")
 else:
-    cols = st.columns(3)
-    for idx, toy in enumerate(st.session_state.toys):
-        with cols[idx % 3]:
-            st.image(toy["image"], use_container_width=True)
-            st.subheader(toy["name"])
-            st.write(f"**Цена:** {toy['price']}")
-            
-            # Генерация ссылки для WhatsApp
-            message = urllib.parse.quote(f"Здравствуйте! Хочу купить 3D игрушку: {toy['name']} за {toy['price']}")
-            wa_link = f"https://wa.me/{toy['phone']}?text={message}"
-            
-            st.markdown(f'<a href="{wa_link}" target="_blank"><button style="background-color: #25D366; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; width: 100%;">Заказать через WhatsApp</button></a>', unsafe_allow_html=True)
+    for index, row in toys_df.iterrows():
+        with st.container():
+            st.subheader(f"🧸 {row['name']}")
+            st.write(f"Цена: {row['price']} тенге")
+            wa_link = f"https://wa.me/{row['phone']}"
+            st.markdown(f'[Заказать в WhatsApp]({wa_link})')
+            st.write("---")
