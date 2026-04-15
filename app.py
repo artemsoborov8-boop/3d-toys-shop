@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
+import time
 
-st.set_page_config(page_title="3D Store", layout="wide")
+st.set_page_config(page_title="3D Toy Store", layout="wide")
 
-# Ссылка на твою таблицу (ОБЯЗАТЕЛЬНО СДЕЛАЙ ЕЕ ДОСТУПНОЙ ДЛЯ ВСЕХ)
-SHEET_URL = "https://docs.google.com/spreadsheets/d/13C_-MilOwnYR-AbjNwBzxFb34mckn9kIglVhByjHEoU/edit?usp=sharing"
+# ТВОЯ ССЫЛКА (убедись, что она верная!)
+SHEET_URL = "https://docs.google.com/spreadsheets/d/13C_-MilOwnYR-AbjNwBzxFb34mckn9klglVhByjHEoU/edit?usp=sharing"
 
 def get_csv_url(url):
     if "/edit" in url:
@@ -13,8 +14,6 @@ def get_csv_url(url):
 
 def load_data():
     try:
-        # Добавляем случайный параметр, чтобы Google не выдавал старую копию файла
-        import time
         csv_url = get_csv_url(SHEET_URL) + f"&cache_buster={time.time()}"
         return pd.read_csv(csv_url)
     except:
@@ -22,7 +21,6 @@ def load_data():
 
 st.title("🤖 Мой 3D Магазин")
 
-# Кнопка ручного обновления
 if st.button("🔄 Обновить витрину"):
     st.cache_data.clear()
     st.rerun()
@@ -30,28 +28,33 @@ if st.button("🔄 Обновить витрину"):
 df = load_data()
 
 if df.empty or len(df) == 0:
-    st.warning("Товары не найдены. Проверьте ссылку на таблицу и заголовки (name, price, phone, image_url)")
+    st.warning("Товары не найдены. Проверьте заголовки в таблице: name, price, phone, image_url")
 else:
-    df = df.dropna(subset=['name']) # Убираем пустые строки
+    df = df.dropna(subset=['name'])
     
     cols = st.columns(3)
     for i, row in df.iterrows():
         with cols[i % 3]:
+            # БЕЗОПАСНЫЙ ВЫВОД КАРТИНКИ
             img = str(row['image_url'])
-            if len(img) > 10:
-                st.image(img, use_container_width=True)
+            if len(img) > 10 and (img.startswith("http")):
+                try:
+                    st.image(img, use_container_width=True)
+                except:
+                    st.error("Ошибка ссылки на фото")
+            else:
+                st.info("Фото не добавлено")
             
             st.subheader(row['name'])
-            st.write(f"**Цена:** {row['price']} тенге")
+            st.write(f"**Цена:** {row['price']}")
             
-            # Чистим номер телефона от лишних знаков
             phone = str(row['phone']).split('.')[0].replace(" ", "").replace("+", "")
             wa_link = f"https://wa.me/{phone}?text=Хочу+заказать:+{row['name']}"
             
             st.markdown(f'''
                 <a href="{wa_link}" target="_blank">
-                    <button style="background-color:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; cursor:pointer; font-size:16px;">
-                        Заказать через WhatsApp
+                    <button style="background-color:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; cursor:pointer;">
+                        Заказать в WhatsApp
                     </button>
                 </a>
             ''', unsafe_allow_html=True)
