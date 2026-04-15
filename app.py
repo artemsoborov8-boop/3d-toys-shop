@@ -1,75 +1,74 @@
 import streamlit as st
+import json
+import os
 
-st.set_page_config(page_title="3D Shop Manager", layout="wide")
+st.set_page_config(page_title="3D Shop Admin", layout="wide")
 
-# 1. Инициализация списка товаров (хранится, пока работает приложение)
+# Файл, где будут лежать твои товары
+DATA_FILE = "products.json"
+
+# Загрузка товаров
+def load_products():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+# Сохранение товаров
+def save_products(products):
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(products, f, ensure_ascii=False, indent=4)
+
 if "toys" not in st.session_state:
-    st.session_state.toys = [
-        {
-            "name": "Динозавр Трицератопс",
-            "price": "3500",
-            "image": "https://i.ibb.co.com/Ps2KHdBw/images.jpg"
-        }
-    ]
+    st.session_state.toys = load_products()
 
-# 2. Настройки админки
-ADMIN_PASSWORD = "202201" # СМЕНИ ПАРОЛЬ ТУТ
+# Пароль для тебя
+ADMIN_PASS = "123" 
 
-if "admin_mode" not in st.session_state:
-    st.session_state.admin_mode = False
+st.title("🤖 Управление магазином 3D")
 
-# --- ВЕРХНЯЯ ПАНЕЛЬ ---
-st.title("🤖 Мой 3D Магазин")
-
-# --- ФОРМА ДОБАВЛЕНИЯ (ТОЛЬКО ДЛЯ АДМИНА) ---
-if st.session_state.admin_mode:
-    st.sidebar.header("➕ Добавить новый товар")
-    new_name = st.sidebar.text_input("Название")
-    new_price = st.sidebar.text_input("Цена (тенге)")
-    new_img = st.sidebar.text_input("Ссылка на фото (URL)")
-    
-    if st.sidebar.button("Опубликовать товар"):
-        if new_name and new_price and new_img:
-            new_item = {"name": new_name, "price": new_price, "image": new_img}
-            st.session_state.toys.append(new_item)
-            st.success("Товар добавлен!")
-            st.rerun()
-        else:
-            st.error("Заполни все поля!")
-    
-    if st.sidebar.button("Выйти из режима админа"):
-        st.session_state.admin_mode = False
-        st.rerun()
+# --- ПАНЕЛЬ УПРАВЛЕНИЯ ---
+with st.sidebar:
+    st.header("🔐 Вход")
+    pwd = st.text_input("Пароль", type="password")
+    if pwd == ADMIN_PASS:
+        st.success("Режим админа включен")
+        st.divider()
+        st.header("➕ Новый товар")
+        name = st.text_input("Название")
+        price = st.text_input("Цена")
+        # ТУТ ВАЖНО: Ссылка должна начинаться с https://
+        img = st.text_input("Ссылка на фото (с https://)")
+        
+        if st.button("Опубликовать на сайт"):
+            if name and price and img.startswith("http"):
+                st.session_state.toys.append({"name": name, "price": price, "image": img})
+                save_products(st.session_state.toys)
+                st.rerun()
+            else:
+                st.error("Проверь ссылку! Должна быть https://...")
 
 # --- ВИТРИНА ---
 if not st.session_state.toys:
-    st.info("В магазине пока нет товаров.")
+    st.info("Пока нет товаров. Зайди в админку слева!")
 else:
     cols = st.columns(3)
     for i, toy in enumerate(st.session_state.toys):
         with cols[i % 3]:
-            st.image(toy["image"], use_container_width=True)
-            st.subheader(toy["name"])
-            st.write(f"**Цена:** {toy['price']} тенге")
+            # Проверка картинки, чтобы сайт не падал
+            try:
+                st.image(toy["image"], use_container_width=True)
+            except:
+                st.error("Ошибка картинки")
             
-            # Если админ — кнопка удаления
-            if st.session_state.admin_mode:
-                if st.button(f"❌ Удалить {toy['name']}", key=f"del_{i}"):
+            st.subheader(toy["name"])
+            st.write(f"Цена: {toy['price']} тг")
+            
+            if pwd == ADMIN_PASS:
+                if st.button(f"🗑 Удалить {toy['name']}", key=f"del_{i}"):
                     st.session_state.toys.pop(i)
+                    save_products(st.session_state.toys)
                     st.rerun()
             else:
-                # Если покупатель — кнопка заказа
-                wa_link = f"https://wa.me/77089703265?text=Хочу+купить:+{toy['name']}"
-                st.markdown(f'<a href="{wa_link}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; cursor:pointer;">Заказать</button></a>', unsafe_allow_html=True)
-
-# --- СЕКРЕТНЫЙ ВХОД ВНИЗУ ---
-st.divider()
-if not st.session_state.admin_mode:
-    with st.expander("🔐 Вход для владельца"):
-        pwd = st.text_input("Введите пароль", type="password")
-        if st.button("Войти"):
-            if pwd == ADMIN_PASSWORD:
-                st.session_state.admin_mode = True
-                st.rerun()
-            else:
-                st.error("Неверный пароль")
+                wa_url = f"https://wa.me/77089703265?text=Хочу:{toy['name']}"
+                st.markdown(f'<a href="{wa_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; cursor:pointer;">Заказать</button></a>', unsafe_allow_html=True)
