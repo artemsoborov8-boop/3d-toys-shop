@@ -1,18 +1,16 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 
 st.set_page_config(page_title="3D Toy Store", layout="wide")
 
-# Ссылка на твою таблицу
-url = "https://docs.google.com/spreadsheets/d/13C_-MilOwnYR-AbjNwBzxFb34mckn9klglVhByjHEoU/edit?usp=sharing"
-
-# Подключение
-conn = st.connection("gsheets", type=GSheetsConnection)
+# Ссылка на твою таблицу (в формате CSV для простоты)
+sheet_id = "13C_-MilOwnYR-AbjNwBzxFb34mckn9klglVhByjHEoU"
+url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
 
 def load_data():
     try:
-        return conn.read(spreadsheet=url)
+        # Читаем напрямую по ссылке
+        return pd.read_csv(url)
     except:
         return pd.DataFrame(columns=["name", "price", "phone", "image_url"])
 
@@ -23,34 +21,22 @@ with st.sidebar:
     admin_code = st.text_input("Код владельца", type="password")
     if admin_code == "9876":
         st.success("Доступ открыт")
-        with st.form("add_form"):
-            name = st.text_input("Название игрушки")
-            price = st.text_input("Цена")
-            phone = st.text_input("WhatsApp (напр. 7707...)")
-            img = st.text_input("Ссылка на фото")
-            submit = st.form_submit_button("Выставить на витрину")
-            
-            if submit and name:
-                data = load_data()
-                new_item = pd.DataFrame([{"name": name, "price": price, "phone": phone, "image_url": img}])
-                updated_data = pd.concat([data, new_item], ignore_index=True)
-                conn.update(spreadsheet=url, data=updated_data)
-                st.balloons()
-                st.info("Товар добавлен! Обнови страницу.")
+        st.info("Чтобы добавить товар, впишите его прямо в Google Таблицу. Она сразу обновится здесь!")
+        st.write(f"[Открыть таблицу для правки](https://docs.google.com/spreadsheets/d/{sheet_id}/edit)")
 
 # --- ВИТРИНА ---
 df = load_data()
 
-if df.empty or len(df) == 0:
-    st.warning("Магазин пока пуст. Добавьте товары через панель слева!")
+if df.empty:
+    st.warning("Магазин пока пуст.")
 else:
-    # Очистка пустых строк, если они есть
-    df = df.dropna(subset=['name'])
-    
     cols = st.columns(3)
     for i, row in df.iterrows():
+        # Проверка на пустые строки
+        if pd.isna(row['name']): continue
+        
         with cols[i % 3]:
-            if str(row['image_url']) != "nan" and row['image_url'] != "":
+            if str(row['image_url']) != "nan" and len(str(row['image_url'])) > 5:
                 st.image(row['image_url'], use_container_width=True)
             st.subheader(row['name'])
             st.write(f"**Цена:** {row['price']}")
