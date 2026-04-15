@@ -23,7 +23,7 @@ if "toys" not in st.session_state:
     st.session_state.toys = load_products()
 
 # Пароль для тебя
-ADMIN_PASS = "123" 
+ADMIN_PASS = "20222022" 
 
 st.title("🤖 Управление магазином 3D")
 
