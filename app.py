@@ -3,49 +3,63 @@ import pandas as pd
 
 st.set_page_config(page_title="3D Toy Store", layout="wide")
 
-# Ссылка на твою таблицу (в формате CSV для простоты)
-sheet_id = "13C_-MilOwnYR-AbjNwBzxFb34mckn9klglVhByjHEoU"
-url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+# Ссылка на твою таблицу
+# Нажми "Поделиться" в таблице, скопируй ссылку и вставь её ниже
+SHEET_URL = "https://docs.google.com/spreadsheets/d/13C_-MilOwnYR-AbjNwBzxFb34mckn9kIglVhByjHEoU/edit?usp=sharing"
+
+def get_csv_url(url):
+    # Превращаем обычную ссылку в ссылку для скачивания данных
+    if "/edit" in url:
+        return url.replace("/edit", "/export?format=csv")
+    return url
 
 def load_data():
     try:
-        # Читаем напрямую по ссылке
-        return pd.read_csv(url)
-    except:
+        csv_url = get_csv_url(SHEET_URL)
+        return pd.read_csv(csv_url)
+    except Exception as e:
         return pd.DataFrame(columns=["name", "price", "phone", "image_url"])
 
 st.title("🤖 Мой 3D Магазин")
 
-# --- АДМИНКА ---
+# --- БОКОВАЯ ПАНЕЛЬ ---
 with st.sidebar:
-    admin_code = st.text_input("Код владельца", type="password")
-    if admin_code == "9876":
-        st.success("Доступ открыт")
-        st.info("Чтобы добавить товар, впишите его прямо в Google Таблицу. Она сразу обновится здесь!")
-        st.write(f"[Открыть таблицу для правки](https://docs.google.com/spreadsheets/d/{sheet_id}/edit)")
+    st.header("Управление")
+    st.write("Чтобы добавить или удалить товар, просто отредактируйте свою Google Таблицу.")
+    st.link_button("Открыть таблицу", SHEET_URL)
+    if st.button("Обновить витрину"):
+        st.rerun()
 
 # --- ВИТРИНА ---
 df = load_data()
 
-if df.empty:
-    st.warning("Магазин пока пуст.")
+if df.empty or len(df) == 0:
+    st.warning("В таблице пока нет данных или ссылка указана неверно.")
 else:
+    # Убираем пустые строки
+    df = df.dropna(subset=['name'])
+    
     cols = st.columns(3)
     for i, row in df.iterrows():
-        # Проверка на пустые строки
-        if pd.isna(row['name']): continue
-        
         with cols[i % 3]:
-            if str(row['image_url']) != "nan" and len(str(row['image_url'])) > 5:
-                st.image(row['image_url'], use_container_width=True)
+            # Показываем фото
+            img_url = str(row['image_url'])
+            if img_url != "nan" and len(img_url) > 10:
+                st.image(img_url, use_container_width=True)
+            else:
+                st.info("Нет фото")
+                
             st.subheader(row['name'])
             st.write(f"**Цена:** {row['price']}")
             
-            wa_link = f"https://wa.me/{row['phone']}?text=Хочу+купить+{row['name']}"
+            # Кнопка WhatsApp
+            phone = str(row['phone']).replace(".0", "") # Убираем лишние точки из номера
+            wa_link = f"https://wa.me/{phone}?text=Здравствуйте!+Хочу+купить+{row['name']}"
+            
             st.markdown(f'''
                 <a href="{wa_link}" target="_blank">
-                    <button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; cursor:pointer;">
-                        Заказать через WhatsApp
+                    <button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; cursor:pointer; font-weight:bold;">
+                        Заказать в WhatsApp
                     </button>
                 </a>
             ''', unsafe_allow_html=True)
